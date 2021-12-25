@@ -17,9 +17,9 @@ class ViewController: UIViewController {
     private var time = 1500
     private let workingTime = 1500
     private var freetime = 300
+    private let animation = CABasicAnimation(keyPath: "strokeEnd")
     private var circleLayer = CAShapeLayer()
     private var progressLayer = CAShapeLayer()
-    private let animation = CABasicAnimation(keyPath: "strokeEnd")
     private var isWorkingTime = true
     private var isVisialClossButton =  false
 
@@ -59,7 +59,6 @@ class ViewController: UIViewController {
         setupHierarchy()
         setupLayout()
         setupView()
-
     }
 
     private func setupHierarchy() {
@@ -91,7 +90,22 @@ class ViewController: UIViewController {
     }
 
     @objc private func buttonAction() {
+        labelCount.text = formatTime()
 
+        showButtonClose()
+
+        if isTimeStarted == false {
+            drawAnimateLayer(isWorkingTime: isWorkingTime)
+            startOrResumeAnimation()
+            startTime()
+            isTimeStarted = true
+            buttonPlay.setBackgroundImage(UIImage(named: "pause.fill"), for: .normal)
+        } else {
+//            pauseAnimation()
+            timer.invalidate()
+            buttonPlay.setBackgroundImage(UIImage(named: "play.fill"), for: .normal)
+            isTimeStarted = false
+        }
     }
 
     private func startTime()  {
@@ -121,8 +135,87 @@ class ViewController: UIViewController {
         return String(format: "%0.2d:%0.2d",minutes, seconds)
     }
 
+    private func createCircularPath(isWorkingTime: Bool) {
+        let circularPath = UIBezierPath(arcCenter: CGPoint(x: view.frame.midX, y: view.frame.midY), radius: 120, startAngle: -90.degreesToRadians, endAngle: 270.degreesToRadians, clockwise: true)
+
+        circleLayer.path = circularPath.cgPath
+
+        if isWorkingTime {
+            circleLayer.strokeColor = UIColor.black.cgColor
+            circleLayer.strokeColor = #colorLiteral(red: 0.501960814, green: 0.501960814, blue: 0.501960814, alpha: 1) //#b2e9af
+
+        } else {
+            circleLayer.strokeColor = UIColor.white.cgColor
+            circleLayer.strokeColor = #colorLiteral(red: 0.4723537564, green: 0.7611255646, blue: 0.7046559453, alpha: 1) //#b2e9af
+        }
+
+        circleLayer.fillColor = UIColor.clear.cgColor
+        circleLayer.lineWidth = 15
+
+        view.layer.addSublayer(circleLayer)
+    }
+
+    private func drawAnimateLayer(isWorkingTime: Bool) {
+        progressLayer.path = UIBezierPath(arcCenter: CGPoint(x: view.frame.midX, y: view.frame.midY), radius: 120, startAngle: -90.degreesToRadians, endAngle: 270.degreesToRadians, clockwise: true).cgPath
+        progressLayer.fillColor = UIColor.clear.cgColor
+        progressLayer.lineWidth = 15.0
+        if isWorkingTime {
+            progressLayer.strokeColor = #colorLiteral(red: 0.9892888665, green: 0.5561057925, blue: 0.5085045695, alpha: 1)
+        } else {
+            progressLayer.strokeColor = #colorLiteral(red: 0.4723537564, green: 0.7611255646, blue: 0.7046559453, alpha: 1) //#b2e9af
+        }
+        view.layer.addSublayer(progressLayer)
+    }
+
+    func startAnimation(duration: TimeInterval) {
+        //        resetAnimation()
+        progressLayer.strokeEnd = 0.0
+        animation.keyPath = "strokeEnd"
+        animation.fromValue = 1
+        animation.toValue = 0
+        animation.duration = duration
+        //        animation.delegate = self
+        animation.fillMode = .forwards
+        animation.isRemovedOnCompletion = false
+        animation.isAdditive = true
+        progressLayer.add(animation, forKey: "strokeEnd")
+        isAnimationStarted = true
+    }
+
+    func startOrResumeAnimation() {
+        if !isAnimationStarted {
+            startAnimation(duration: TimeInterval(time))
+        } else {
+            resumeAnimation()
+        }
+    }
+
+    func resumeAnimation() {
+        let pausedTime = progressLayer.timeOffset
+        progressLayer.speed = 1.0
+        progressLayer.timeOffset = 0.0
+        progressLayer.beginTime = 0.0
+        let timePaused = progressLayer.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
+        progressLayer.beginTime = timePaused
+    }
+
     @objc private func stopAnimation() {}
 
 }
+
+extension Double {
+    var degreesToRadians : CGFloat {
+        return CGFloat(self) * .pi / 180
+    }
+}
+
+extension ViewController {
+
+    enum Metric {
+        static let workingTime: CGFloat = 1500
+        static let freetime: CGFloat = 300
+    }
+}
+
 
 
