@@ -8,18 +8,16 @@
 
 import UIKit
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, CAAnimationDelegate {
 
     var timer = Timer()
 
     private var isTimeStarted = false
     private var isAnimationStarted = false
     private var time = 1500
-    private let workingTime = 1500
-    private var freetime = 300
-    private let animation = CABasicAnimation(keyPath: "strokeEnd")
     private var circleLayer = CAShapeLayer()
     private var progressLayer = CAShapeLayer()
+    private let animation = CABasicAnimation(keyPath: "strokeEnd")
     private var isWorkingTime = true
     private var isVisialClossButton =  false
 
@@ -56,18 +54,10 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        setupHierarchy()
-        setupLayout()
-        setupView()
-    }
-
-    private func setupHierarchy() {
         view.addSubview(labelCount)
         view.addSubview(buttonPlay)
         view.addSubview(stopButton)
-    }
 
-    private func setupLayout() {
         labelCount.translatesAutoresizingMaskIntoConstraints = false
         labelCount.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         labelCount.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -50).isActive = true
@@ -77,11 +67,11 @@ class ViewController: UIViewController {
         buttonPlay.topAnchor.constraint(equalTo: labelCount.bottomAnchor, constant: 50).isActive = true
         buttonPlay.heightAnchor.constraint(equalToConstant: 70 ).isActive = true
         buttonPlay.widthAnchor.constraint(equalToConstant: 70 ).isActive = true
+
+        createCircularPath(isWorkingTime: isWorkingTime)
     }
 
-    private func setupView() {}
-
-    private func showButtonClose() {
+    func showButtonClose() {
         stopButton.translatesAutoresizingMaskIntoConstraints = false
         stopButton.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 110).isActive = true
         stopButton.topAnchor.constraint(equalTo: labelCount.bottomAnchor, constant: -100).isActive = true
@@ -89,7 +79,7 @@ class ViewController: UIViewController {
         stopButton.widthAnchor.constraint(equalToConstant: 30 ).isActive = true
     }
 
-    @objc private func buttonAction() {
+    @objc func buttonAction() {
         labelCount.text = formatTime()
 
         showButtonClose()
@@ -101,26 +91,26 @@ class ViewController: UIViewController {
             isTimeStarted = true
             buttonPlay.setBackgroundImage(UIImage(named: "pause.fill"), for: .normal)
         } else {
-//            pauseAnimation()
+            pauseAnimation()
             timer.invalidate()
             buttonPlay.setBackgroundImage(UIImage(named: "play.fill"), for: .normal)
             isTimeStarted = false
         }
     }
 
-    private func startTime()  {
+    func startTime()  {
         timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
     }
 
-    @objc private func fireTimer() {
+    @objc func fireTimer() {
         if time < 1 {
             buttonPlay.setBackgroundImage(UIImage(named: "play.fill"), for: .normal)
             timer.invalidate()
-            time = workingTime
+            time = Metric.workingTime
             if !isWorkingTime {
-                time = freetime
+                time = Metric.freetime
             } else {
-                time = freetime
+                time = Metric.freetime
             }
             isTimeStarted = false
         } else {
@@ -129,13 +119,15 @@ class ViewController: UIViewController {
         }
     }
 
-    private func formatTime() -> String {
+    // MARK: - Properties -
+
+    func formatTime() -> String {
         let minutes = Int(time) / 60 % 60
         let seconds = Int(time) % 60
         return String(format: "%0.2d:%0.2d",minutes, seconds)
     }
 
-    private func createCircularPath(isWorkingTime: Bool) {
+    func createCircularPath(isWorkingTime: Bool) {
         let circularPath = UIBezierPath(arcCenter: CGPoint(x: view.frame.midX, y: view.frame.midY), radius: 120, startAngle: -90.degreesToRadians, endAngle: 270.degreesToRadians, clockwise: true)
 
         circleLayer.path = circularPath.cgPath
@@ -155,7 +147,7 @@ class ViewController: UIViewController {
         view.layer.addSublayer(circleLayer)
     }
 
-    private func drawAnimateLayer(isWorkingTime: Bool) {
+    func drawAnimateLayer(isWorkingTime: Bool) {
         progressLayer.path = UIBezierPath(arcCenter: CGPoint(x: view.frame.midX, y: view.frame.midY), radius: 120, startAngle: -90.degreesToRadians, endAngle: 270.degreesToRadians, clockwise: true).cgPath
         progressLayer.fillColor = UIColor.clear.cgColor
         progressLayer.lineWidth = 15.0
@@ -168,13 +160,13 @@ class ViewController: UIViewController {
     }
 
     func startAnimation(duration: TimeInterval) {
-        //        resetAnimation()
+        resetAnimation()
         progressLayer.strokeEnd = 0.0
         animation.keyPath = "strokeEnd"
         animation.fromValue = 1
         animation.toValue = 0
         animation.duration = duration
-        //        animation.delegate = self
+        animation.delegate = self
         animation.fillMode = .forwards
         animation.isRemovedOnCompletion = false
         animation.isAdditive = true
@@ -190,17 +182,71 @@ class ViewController: UIViewController {
         }
     }
 
-    func resumeAnimation() {
-        let pausedTime = progressLayer.timeOffset
+     func pauseAnimation() {
+           let pausedTime = progressLayer.convertTime(CACurrentMediaTime(), from: nil)
+           progressLayer.speed = 0
+           progressLayer.timeOffset = pausedTime
+       }
+
+       func resumeAnimation() {
+           let pausedTime = progressLayer.timeOffset
+           progressLayer.speed = 1.0
+           progressLayer.timeOffset = 0.0
+           progressLayer.beginTime = 0.0
+           let timePaused = progressLayer.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
+           progressLayer.beginTime = timePaused
+       }
+
+    func resetAnimation() {
         progressLayer.speed = 1.0
         progressLayer.timeOffset = 0.0
         progressLayer.beginTime = 0.0
-        let timePaused = progressLayer.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
-        progressLayer.beginTime = timePaused
+        progressLayer.strokeEnd = 0.0
+        isAnimationStarted = false
     }
 
-    @objc private func stopAnimation() {}
+    @objc func stopAnimation() {
+        timer.invalidate()
 
+        buttonPlay.setBackgroundImage(UIImage(named: "play.fill"), for: .normal)
+        labelCount.text = Metric.labelTextWorkTime
+        progressLayer.speed = 1.0
+        progressLayer.timeOffset = 0.0
+        progressLayer.beginTime = 0.0
+        progressLayer.strokeEnd = 0.0
+        progressLayer.removeAllAnimations()
+
+        if isWorkingTime {
+            labelCount.text = Metric.labelTextWorkTime
+            time = Metric.workingTime
+        } else {
+            labelCount.text = Metric.labelTextFreeTime
+            time = Metric.freetime
+        }
+        isTimeStarted = false
+        isAnimationStarted = false
+    }
+
+    func autoStopEnd() {
+
+        if isWorkingTime {
+            isWorkingTime = false
+            labelCount.text = Metric.labelTextFreeTime
+            time = Metric.freetime
+            stopAnimation()
+        } else {
+            isWorkingTime = true
+            labelCount.text = Metric.labelTextWorkTime
+            time = Metric.freetime
+            stopAnimation()
+        }
+
+        isAnimationStarted = false
+    }
+
+    internal func animationDidStop(_ anim: CAAnimation, finished flag: Bool) {
+        autoStopEnd()
+    }
 }
 
 extension Double {
@@ -212,9 +258,12 @@ extension Double {
 extension ViewController {
 
     enum Metric {
-        static let workingTime: CGFloat = 1500
-        static let freetime: CGFloat = 300
+        static let workingTime = 1500
+        static let freetime = 300
+        static let labelTextFreeTime = "05:00"
+        static let labelTextWorkTime = "25:00"
     }
+    
 }
 
 
